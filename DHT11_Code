@@ -1,0 +1,77 @@
+#include <ESP8266WiFi.h>
+#include "ThingSpeak.h"s
+#include <Adafruit_Sensor.h>
+#include <DHT.h>
+#include <DHT_U.h>
+#define DHTPIN 2 			// Digital pin connected to the DHT sensor
+#define DHTTYPE DHT11	 	// DHT 11
+const char* ssid = "XX"; 		// your network SSID (name)
+const char* password = "XXXXX"; 	// your network password
+int i = 0;
+WiFiClient client;
+unsigned long myChannelNumber = 1896491;
+
+
+const char * myWriteAPIKey = "C66AJ46VR9V2M6AI";
+// Timer variables
+unsigned long lastTime = 0;
+unsigned long timerDelay = 30000;
+DHT_Unified dht(DHTPIN, DHTTYPE);
+uint32_t delayMS;
+void setup() {
+Serial.begin(115200); 	//Initialize serial
+WiFi.mode(WIFI_STA);
+ThingSpeak.begin(client); 	// Initialize ThingSpeak
+dht.begin();
+}
+void loop() {
+int temp,hum;
+for (i = 0; i < 50; i++)
+{
+if ((millis() - lastTime) > timerDelay) {
+// Connect or reconnect to WiFi
+if (WiFi.status() != WL_CONNECTED) {
+Serial.print("Attempting to connect");
+while (WiFi.status() != WL_CONNECTED) {
+WiFi.begin(ssid, password);
+delay(5000);
+}
+Serial.println("\nConnected.");
+}
+ 
+// Get temperature event and print its value.
+sensors_event_t event;
+dht.temperature().getEvent(&event);
+if (isnan(event.temperature)) {
+Serial.println(F("Error reading temperature!"));
+}
+else {
+Serial.print(F("Temperature: "));
+Serial.print(event.temperature);
+temp=event.temperature;
+Serial.println(F("°C"));
+}
+// Get humidity event and print its value.
+dht.humidity().getEvent(&event);
+if (isnan(event.relative_humidity)) {
+Serial.println(F("Error reading humidity!"));
+}
+else {
+Serial.print(F("Humidity: "));
+Serial.print(event.relative_humidity);
+hum=event.temperature;
+Serial.println(F("%"));
+}
+ThingSpeak.setField(1, temp);
+ThingSpeak.setField(2, hum);
+int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+if (x == 200) {
+Serial.println("Channel update successful.");
+}
+else {
+Serial.println("Problem updating channel. HTTP error code " + String(x));
+} 
+lastTime = millis();
+}
+}
+}
